@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tone.js Sampler (C/F# 8샘플)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js"></script>
+  <style>
+    body{margin:0;background:#0f172a;color:#e2e8f0;font-family:ui-sans-serif,system-ui}
+    .wrap{max-width:760px;margin:0 auto;padding:20px}
+    button, input[type=range]{margin:.25rem .4rem;padding:.6rem 1rem;border:0;border-radius:.6rem;background:#1f2937;color:#e5e7eb;cursor:pointer}
+    button:hover{background:#374151}
+    .row{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin:.5rem 0}
+    .meter{width:180px}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h2>🎹 Tone.Sampler – 8개 샘플(C/F#)</h2>
+  <div class="row">
+    <button id="btnStart">🔊 Audio 시작</button>
+    <button id="btnScale">도레미파솔 (C4~G4)</button>
+    <button id="btnChord">C메이저 코드</button>
+    <button id="btnArp">아르페지오</button>
+  </div>
+  <div class="row">
+    <label>리버브(룸): <input id="rev" class="meter" type="range" min="0" max="0.95" step="0.01" value="0.35" /></label>
+    <label>볼륨(dB): <input id="vol" class="meter" type="range" min="-24" max="0" step="1" value="-6" /></label>
+  </div>
+  <p>샘플 경로: <code>samples/piano/</code> (필요 시 코드에서 수정)</p>
+</div>
+
+<script>
+/* ---------- 이 경로를 실제 폴더에 맞게 바꾸세요 ---------- */
+const BASE = "samples/piano/";
+
+/* 리버브 & 컴프 & 게인 */
+const reverb = new Tone.Freeverb({ roomSize: 0.35, dampening: 2500 }).toDestination();
+const comp   = new Tone.Compressor(-14, 3).connect(reverb);
+const gain   = new Tone.Gain(Tone.dbToGain(-6)).connect(comp);
+
+/* Sampler: C/F# 8개만 로드 (파일명은 Fs로 저장 권장) */
+const piano = new Tone.Sampler({
+  urls: {
+    "C2": "C2.wav",
+    "F#2": "Fs2.wav",
+    "C3": "C3.wav",
+    "F#3": "Fs3.wav",
+    "C4": "C4.wav",
+    "F#4": "Fs4.wav",
+    "C5": "C5.wav",
+    "F#5": "Fs5.wav"
+  },
+  baseUrl: BASE,
+  attack: 0.004,
+  release: 1.4
+}).connect(gain);
+
+/* UI */
+const btnStart = document.getElementById("btnStart");
+const btnScale = document.getElementById("btnScale");
+const btnChord = document.getElementById("btnChord");
+const btnArp   = document.getElementById("btnArp");
+const revKnob  = document.getElementById("rev");
+const volKnob  = document.getElementById("vol");
+
+btnStart.onclick = async () => {
+  await Tone.start();
+  // 로딩 대기(선택): 샘플이 준비됐는지 보장
+  await piano.loaded;
+  btnStart.textContent = "✅ 준비완료";
+};
+
+revKnob.oninput = e => { reverb.roomSize.value = Number(e.target.value); };
+volKnob.oninput = e => { gain.gain.value = Tone.dbToGain(Number(e.target.value)); };
+
+btnScale.onclick = () => {
+  const now = Tone.now();
+  ["C4","D4","E4","F4","G4"].forEach((n,i)=>{
+    const t = now + i*0.35 + (Math.random()*0.012-0.006); // 약간 humanize
+    const vel = 0.75 + (Math.random()*0.2-0.1);
+    piano.triggerAttackRelease(n, "8n", t, vel);
+  });
+};
+
+btnChord.onclick = () => {
+  const now = Tone.now();
+  const notes = ["C4","E4","G4"];
+  // 살짝 스트럼(현 간 시간차)
+  notes.forEach((n,i)=>{
+    const t = now + i*0.02 + (Math.random()*0.006-0.003);
+    piano.triggerAttackRelease(n, "2n", t, 0.85 - i*0.05);
+  });
+};
+
+btnArp.onclick = () => {
+  const now = Tone.now();
+  const seq = ["C4","E4","G4","B4","C5","G4","E4","C4"];
+  seq.forEach((n,i)=>{
+    const t = now + i*0.28 + (Math.random()*0.01-0.005);
+    piano.triggerAttackRelease(n, "8n", t, 0.8);
+  });
+};
+</script>
+</body>
+</html>
